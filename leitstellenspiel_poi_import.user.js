@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.5
+// @name         LSS POI Importer v2.4.13
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.5
+// @version      2.4.13
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -360,9 +360,44 @@ out center tags bb;`;
   }
 
   async function fetchAllPOIs() {
+    // Prüfen ob POI-Ebene auf der Karte aktiv ist
+    try {
+      if (typeof map_filters_service !== 'undefined') {
+        const layers = map_filters_service.getMapFiltersLayers?.();
+        const poisLayer = layers?.pois;
+        if (poisLayer && poisLayer.isHidden && poisLayer.isHidden()) {
+          throw new Error(
+            'POI-Ebene ist auf der Karte ausgeblendet!\n' +
+            'Bitte in den Kartenfiltern die POI-Anzeige aktivieren, sonst werden keine POIs geladen.'
+          );
+        }
+      }
+    } catch(e) {
+      if (e.message.includes('POI-Ebene')) throw e;
+    }
+
     const r = await fetch('/mission_positions.json',{credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}});
     if (!r.ok) throw new Error('HTTP '+r.status);
-    return (await r.json()).mission_positions || [];
+    const pois = (await r.json()).mission_positions || [];
+
+    // Leer = POI-Filter ausgeblendet ODER neuer Account ohne POIs
+    if (pois.length === 0) {
+      const err = new Error(
+        'Keine POIs geladen (leere Liste).\n' +
+        'Mögliche Ursache: POI-Anzeige in den Kartenfiltern deaktiviert.\n' +
+        'Falls du noch keine POIs hast, kannst du trotzdem fortfahren.'
+      );
+      err.isEmpty = true;
+      throw err;
+    }
+
+    // 10.000 POI-Limit warnen
+    const limitReached = pois.length >= 10000;
+    if (limitReached) {
+      console.warn('[LSS POI Importer] ⚠ Exakt 10.000 POIs geladen – möglicherweise sind weitere vorhanden.');
+    }
+
+    return { pois, limitReached };
   }
 
   async function deletePOI(id, token) {
@@ -588,7 +623,7 @@ out center tags bb;`;
     panel.id = 'lss-poi-importer';
     panel.innerHTML = `
       <div id="lss-hdr">
-        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.5</span></div>
+        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.13</span></div>
         <div class="hbtns">
           <button id="lss-min">─</button>
           <button id="lss-close">✕</button>
@@ -618,6 +653,9 @@ out center tags bb;`;
         <div class="lpane on" id="tab-osm">
           <div class="linfo-box">
             ℹ️ <strong>Tampermonkey-Berechtigung erforderlich:</strong> Beim ersten Klick auf „OSM abfragen" öffnet Tampermonkey einen Erlaubnisdialog für <code>overpass-api.de</code> und <code>nominatim.openstreetmap.org</code> – bitte <strong>„Immer erlauben"</strong> wählen.
+          </div>
+          <div id="o-poi-layer-warn" style="display:none;background:#fcf8e3;border:1px solid #faebcc;border-left:3px solid #f0ad4e;border-radius:4px;padding:8px 10px;font-size:12px;color:#8a6d3b;line-height:1.5">
+            ⚠️ <strong>POI-Ebene nicht aktiv!</strong> Die POI-Anzeige ist in den Kartenfiltern deaktiviert. Dadurch kann der Duplikat-Check nicht funktionieren – es könnten doppelte POIs entstehen. Bitte die POI-Ebene in den Kartenfiltern einschalten.
           </div>
           <div>
             <div class="ll">Adresse / Ort</div>
@@ -700,6 +738,13 @@ out center tags bb;`;
               </div>
             </div>
             <button class="lb s" id="o-import" style="width:100%;padding:8px;font-weight:600">⬆ Auswahl importieren</button>
+            <div id="o-dup-limit-warn" style="display:none;background:#fcf8e3;border:1px solid #faebcc;border-left:3px solid #f0ad4e;border-radius:4px;padding:8px 10px;font-size:12px;color:#8a6d3b;line-height:1.5">
+              ⚠ <strong>Duplikat-Check unvollständig!</strong> Es wurden nur 10.000 von möglicherweise mehr POIs geladen.
+              Es könnten Duplikate entstehen.<br>
+              <label style="margin-top:6px;display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" id="o-dup-limit-override"> <span>Ich verstehe das Risiko – trotzdem importieren</span>
+              </label>
+            </div>
             <div id="o-logs" style="display:none"><div class="ll">Protokoll</div><div class="llog" id="o-log"></div></div>
           </div>
           <div id="o-err" style="display:none" class="lerr"></div>
@@ -907,6 +952,7 @@ out center tags bb;`;
       panel.querySelectorAll('.lpane').forEach(x=>x.classList.remove('on'));
       t.classList.add('on');
       document.getElementById('tab-'+t.dataset.tab).classList.add('on');
+      if (t.dataset.tab === 'osm') checkPoiLayerWarning();
     }));
 
     // ─ Header ──────────────────────────────────────────────────────────────
@@ -1000,6 +1046,25 @@ out center tags bb;`;
     const showErr = (id, msg) => { const el=g(id); el.style.display=msg?'block':'none'; el.textContent=msg||''; };
     const addLog = (id, msg, cls) => { const el=g(id); el.innerHTML+=`<span class="${cls}">${msg}</span><br>`; el.scrollTop=99999; };
 
+    // POI-Ebene prüfen und Warnbanner anzeigen (nach g-Definition)
+    function checkPoiLayerWarning() {
+      const banner = g('o-poi-layer-warn');
+      if (!banner) return;
+      try {
+        if (typeof map_filters_service !== 'undefined') {
+          const layers = map_filters_service.getMapFiltersLayers?.();
+          const poisLayer = layers?.pois;
+          if (poisLayer && poisLayer.isHidden && poisLayer.isHidden()) {
+            banner.style.display = 'block';
+            return;
+          }
+        }
+      } catch(e) {}
+      banner.style.display = 'none';
+    }
+    // Direkt beim Öffnen prüfen
+    checkPoiLayerWarning();
+
     // Haversine-Distanz in Metern
     function haversineM(lat1, lon1, lat2, lon2) {
       const R = 6371000;
@@ -1013,17 +1078,31 @@ out center tags bb;`;
     // Vorhandene LSS-POIs (gecacht, wird beim ersten Check geladen)
     let existingPOIs = null;
     let existingPOIsLoading = false;
+    let existingPOIsLimitReached = false;
 
-    async function getExistingPOIs() {
+    async function getExistingPOIs(warnErrId) {
       if (existingPOIs !== null) return existingPOIs;
       if (existingPOIsLoading) {
-        // Warten bis geladen
         while (existingPOIsLoading) await sleep(100);
         return existingPOIs;
       }
       existingPOIsLoading = true;
-      try { existingPOIs = await fetchAllPOIs(); }
-      catch(e) { existingPOIs = []; }
+      try {
+        const result = await fetchAllPOIs();
+        existingPOIs = result.pois;
+        existingPOIsLimitReached = result.limitReached;
+        if (result.limitReached && warnErrId) {
+          showErr(warnErrId,
+            '⚠ Es wurden exakt 10.000 POIs geladen – möglicherweise existieren weitere. ' +
+            'Der Duplikat-Filter ist eventuell unvollständig.'
+          );
+        }
+      } catch(e) {
+        existingPOIs = null; // nicht als leer cachen — nächster Versuch soll neu laden
+        existingPOIsLimitReached = false;
+        existingPOIsLoading = false;
+        throw e; // Fehler weitergeben damit der Aufrufer blockieren kann
+      }
       existingPOIsLoading = false;
       return existingPOIs;
     }
@@ -1036,9 +1115,9 @@ out center tags bb;`;
       );
     }
 
-    // Duplikate in einem Array markieren (setzt p.duplicate = true/false)
-    async function markDuplicates(arr, radiusM) {
-      const existing = await getExistingPOIs();
+    async function markDuplicates(arr, radiusM, warnErrId) {
+      // Fehler (leere Liste, Filter aktiv, 10k-Limit) werden weitergegeben
+      const existing = await getExistingPOIs(warnErrId);
       arr.forEach(p => { p.duplicate = isDuplicate(p, existing, radiusM); });
     }
 
@@ -1121,8 +1200,9 @@ out center tags bb;`;
     // ═══════════════════════════════════════════════════════════════════════
     // OSM TAB
     // ═══════════════════════════════════════════════════════════════════════
+    try {
 
-    g('o-geo-btn').addEventListener('click', async () => {
+    g('o-geo-btn')?.addEventListener('click', async () => {
       const addr=g('o-addr').value.trim(); if(!addr) return;
       g('o-geo-btn').disabled=true; g('o-geo-btn').textContent='⏳';
       showErr('o-err','');
@@ -1159,6 +1239,13 @@ out center tags bb;`;
     }
     g('o-mode-area').addEventListener('click', () => setMode('area'));
     g('o-mode-radius').addEventListener('click', () => setMode('radius'));
+
+    // 10k-Limit Override-Checkbox
+    document.addEventListener('change', e => {
+      if (e.target.id === 'o-dup-limit-override') {
+        g('o-import').disabled = !e.target.checked;
+      }
+    });
 
     g('o-all').addEventListener('click',e=>{e.preventDefault();panel.querySelectorAll('#o-types input').forEach(c=>c.checked=true);});
     g('o-none').addEventListener('click',e=>{e.preventDefault();panel.querySelectorAll('#o-types input').forEach(c=>c.checked=false);});
@@ -1312,10 +1399,38 @@ out center tags bb;`;
         // ── Duplikat-Check gegen vorhandene LSS-POIs ─────────────────────
         btn.textContent = '⏳ Prüfe vorhandene POIs…';
         const dupRadius = Math.max(10, parseInt(g('o-dup-radius').value) || 100);
-        await markDuplicates(deduped, dupRadius);
+        try {
+          await markDuplicates(deduped, dupRadius, 'o-err');
+        } catch(dupErr) {
+          if (dupErr.isEmpty) {
+            // Leere Liste: könnte neuer Account sein → Warnung mit Weiter-Option
+            showErr('o-err',
+              '⚠ Keine vorhandenen POIs geladen. POI-Ebene aktiv?\n' +
+              'Falls du noch keine POIs hast, kannst du trotzdem importieren.'
+            );
+            // Tabelle trotzdem anzeigen, aber alle als nicht-Duplikat markieren
+            deduped.forEach(p => { p.duplicate = false; p.checked = true; });
+            existingPOIsLimitReached = false;
+          } else {
+            // Echter Fehler (Filter aktiv etc.) → blockieren
+            showErr('o-err', '🚫 ' + dupErr.message);
+            btn.disabled=false; btn.textContent='🔍 OSM abfragen'; running=false; return;
+          }
+        }
         // Duplikate standardmäßig abwählen
         deduped.forEach(p => { if (p.duplicate) p.checked = false; });
         const serverDupCount = deduped.filter(p=>p.duplicate).length;
+
+        // 10k-Limit: Import sperren bis Nutzer bestätigt
+        const importBtn = g('o-import');
+        if (existingPOIsLimitReached) {
+          importBtn.disabled = true;
+          g('o-dup-limit-warn').style.display = 'block';
+          g('o-dup-limit-override').checked = false;
+        } else {
+          importBtn.disabled = false;
+          g('o-dup-limit-warn').style.display = 'none';
+        }
 
         osmPOIs=deduped; osmFilt=[];
         buildTypeFilter(osmPOIs,'o-fsel');
@@ -1346,6 +1461,10 @@ out center tags bb;`;
         {prog:'o-prog',pl:'o-pl',pp:'o-pp',pb:'o-pb',st:'o-st',sok:'o-sok',sfail:'o-sfail',logs:'o-logs',log:'o-log',btn:'o-import'});
     });
 
+    } catch(osmInitErr) {
+      console.error('[LSS POI Importer] OSM-Tab Initialisierungsfehler:', osmInitErr);
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // JSON TAB
     // ═══════════════════════════════════════════════════════════════════════
@@ -1373,7 +1492,7 @@ out center tags bb;`;
 
       // Duplikat-Check
       const dupRadius = Math.max(10, parseInt(g('j-dup-radius').value) || 100);
-      await markDuplicates(jsonPOIs, dupRadius);
+      await markDuplicates(jsonPOIs, dupRadius, 'j-err');
       jsonPOIs.forEach(p => { if (p.duplicate) p.checked = false; });
 
       jsonFilt=[];
@@ -1412,10 +1531,10 @@ out center tags bb;`;
       showErr('d-err','');
       const btn = g('d-dup-check');
       btn.disabled = true; btn.textContent = '⏳ Lade POIs…';
-      existingPOIs = null; // immer frisch laden
+      existingPOIs = null; existingPOIsLimitReached = false; // immer frisch laden
 
       try {
-        const all = await getExistingPOIs();
+        const all = await getExistingPOIs('d-err');
         const radius = Math.max(10, parseInt(g('d-dup-radius').value) || 100);
         btn.textContent = '⏳ Prüfe Duplikate…';
 
@@ -1547,9 +1666,14 @@ out center tags bb;`;
       g('d-load').disabled = true;
       g('d-load').textContent = '⏳ Lade…';
       try {
-        allServerPOIs = await fetchAllPOIs();
+        const result = await fetchAllPOIs();
+        allServerPOIs = result.pois;
         allServerPOIs.forEach(p => p._checked = true);
-        if (!allServerPOIs.length) { showErr('d-err','Keine POIs auf dem Server gefunden.'); g('d-load').disabled=false; g('d-load').textContent='📥 POIs laden & filtern'; return; }
+        if (!allServerPOIs.length) { showErr('d-err','Keine POIs auf dem Server gefunden.\nTipp: POI-Ebene in den Kartenfiltern aktivieren!'); g('d-load').disabled=false; g('d-load').textContent='📥 POIs laden & filtern'; return; }
+        if (result.limitReached) showErr('d-err',
+          '⚠ Es wurden exakt 10.000 POIs geladen – möglicherweise sind weitere vorhanden. ' +
+          'Duplikat-Filter und Löschfunktion sind eventuell unvollständig.'
+        );
         renderDelTable();
         g('d-preview').style.display = 'flex';
         g('d-conf').classList.remove('on');
@@ -1630,7 +1754,7 @@ out center tags bb;`;
       }
       addLog('d-log',`■ Fertig: ${ok} gelöscht, ${fail} Fehler`,'linfo');
       delPOIs = []; running = false;
-      existingPOIs = null;
+      existingPOIs = null; existingPOIsLimitReached = false;
       hideMiniProgress();
       if (ok > 0) refreshMap();
       g('d-start').disabled = false;

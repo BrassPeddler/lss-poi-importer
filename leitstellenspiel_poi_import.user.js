@@ -2,6 +2,8 @@
 // @name         LSS POI Importer v2.4.14
 // @namespace    https://www.leitstellenspiel.de/
 // @version      2.4.14
+// @downloadURL  https://github.com/BrassPeddler/lss-poi-importer/raw/refs/heads/main/leitstellenspiel_poi_import.user.js
+// @updateURL    https://github.com/BrassPeddler/lss-poi-importer/raw/refs/heads/main/leitstellenspiel_poi_import.user.js
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*

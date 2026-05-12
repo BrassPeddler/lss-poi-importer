@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.13
+// @name         LSS POI Importer v2.4.14
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.13
+// @version      2.4.14
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -725,7 +725,7 @@ out center tags bb;`;
               <tbody id="o-tbody"></tbody>
             </table></div>
             <div class="ldel">
-              <span>Delay:</span><input id="o-delay" type="number" value="50" min="50" max="5000" step="100"><span>ms</span>
+              <span>Delay:</span><input id="o-delay" type="number" value="100" min="100" max="5000" step="100"><span>ms</span>
               <span style="margin-left:8px">Dup.-Radius:</span><input id="o-dup-radius" type="number" value="100" min="10" max="1000" step="10"><span>m</span>
             </div>
             <div id="o-prog" style="display:none" class="lpw">
@@ -1457,7 +1457,7 @@ out center tags bb;`;
       if (!list.length) { showErr('o-err','Keine POIs ausgewählt.'); return; }
       running=true; showErr('o-err','');
       const btn=g('o-import'); btn.disabled=true; btn.textContent='⏳ Importiere…';
-      await runImport(list, Math.max(50,parseInt(g('o-delay').value)||400),
+      await runImport(list, Math.max(100,parseInt(g('o-delay').value)||400),
         {prog:'o-prog',pl:'o-pl',pp:'o-pp',pb:'o-pb',st:'o-st',sok:'o-sok',sfail:'o-sfail',logs:'o-logs',log:'o-log',btn:'o-import'});
     });
 

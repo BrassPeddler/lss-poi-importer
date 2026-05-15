@@ -1,9 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.14
+// @name         LSS POI Importer v2.4.15
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.14
-// @downloadURL  https://github.com/BrassPeddler/lss-poi-importer/raw/refs/heads/main/leitstellenspiel_poi_import.user.js
-// @updateURL    https://github.com/BrassPeddler/lss-poi-importer/raw/refs/heads/main/leitstellenspiel_poi_import.user.js
+// @version      2.4.15
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -42,7 +40,7 @@
     51:'Kompostieranlage',52:'Textilverarbeitung',53:'Moor',54:'Hüttenwerk',
     55:'Kraftwerk',56:'Werksgelände',57:'Seilbahn',58:'Brücke',
     59:'U-Bahn Station',60:'Eisenbahntunnel',61:'Zoo',62:'Kohlekraftwerk',
-    63:'JVA',64:'Solarpark',65:'Raffinerie'
+    63:'JVA',64:'Solarpark',65:'Raffinerie',66:'Schiffswerft'
   };
 
   // OSM-Tag → LSS poi_type (Priorität: spezifischeres zuerst)
@@ -136,6 +134,8 @@
     {tags:{power:'plant'},type:55},
     {tags:{man_made:'wastewater_plant'},type:47},
     {tags:{man_made:'works'},type:56},
+    {tags:{industrial:'shipyard'},type:66},
+    {tags:{man_made:'shipyard'},type:66},
     {tags:{landuse:'industrial'},type:40},
     {tags:{building:'industrial'},type:40},
     {tags:{building:'warehouse'},type:18},
@@ -625,7 +625,7 @@ out center tags bb;`;
     panel.id = 'lss-poi-importer';
     panel.innerHTML = `
       <div id="lss-hdr">
-        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.13</span></div>
+        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.15</span></div>
         <div class="hbtns">
           <button id="lss-min">─</button>
           <button id="lss-close">✕</button>
@@ -727,7 +727,7 @@ out center tags bb;`;
               <tbody id="o-tbody"></tbody>
             </table></div>
             <div class="ldel">
-              <span>Delay:</span><input id="o-delay" type="number" value="100" min="100" max="5000" step="100"><span>ms</span>
+              <span>Delay:</span><input id="o-delay" type="number" value="50" min="50" max="5000" step="100"><span>ms</span>
               <span style="margin-left:8px">Dup.-Radius:</span><input id="o-dup-radius" type="number" value="100" min="10" max="1000" step="10"><span>m</span>
             </div>
             <div id="o-prog" style="display:none" class="lpw">
@@ -1459,7 +1459,7 @@ out center tags bb;`;
       if (!list.length) { showErr('o-err','Keine POIs ausgewählt.'); return; }
       running=true; showErr('o-err','');
       const btn=g('o-import'); btn.disabled=true; btn.textContent='⏳ Importiere…';
-      await runImport(list, Math.max(100,parseInt(g('o-delay').value)||400),
+      await runImport(list, Math.max(50,parseInt(g('o-delay').value)||400),
         {prog:'o-prog',pl:'o-pl',pp:'o-pp',pb:'o-pb',st:'o-st',sok:'o-sok',sfail:'o-sfail',logs:'o-logs',log:'o-log',btn:'o-import'});
     });
 

@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.16
+// @name         LSS POI Importer v2.4.17
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.16
+// @version      2.4.17
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -439,6 +439,7 @@ out center tags bb;`;
         font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;
         font-size:13px;color:#333;z-index:99999;
         display:flex;flex-direction:column;overflow:hidden;
+        color-scheme:light;
       }
       #lss-poi-importer *{box-sizing:border-box;margin:0;padding:0;}
 
@@ -536,7 +537,7 @@ out center tags bb;`;
         font-weight:700;color:#555;border-bottom:2px solid #ddd;
         position:sticky;top:0;z-index:1;
       }
-      .lt tbody tr{border-bottom:1px solid #f0f0f0;}
+      .lt tbody tr{border-bottom:1px solid #f0f0f0;background:#fff;}
       .lt tbody tr:last-child{border-bottom:none;}
       .lt tbody tr:hover{background:#f9f9f9;}
       .lt td{padding:5px 8px;vertical-align:middle;color:#333;}
@@ -636,7 +637,7 @@ out center tags bb;`;
     panel.id = 'lss-poi-importer';
     panel.innerHTML = `
       <div id="lss-hdr">
-        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.16</span></div>
+        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.17</span></div>
         <div class="hbtns">
           <button id="lss-min">─</button>
           <button id="lss-close">✕</button>
@@ -1148,10 +1149,10 @@ out center tags bb;`;
       g(tbody).innerHTML = filt.map(p=>`
         <tr style="${p.duplicate?'opacity:.55':''}">
           <td><input type="checkbox" data-i="${p.idx}" ${p.checked?'checked':''}></td>
-          <td class="e" title="${p.caption}">${p.caption}</td>
-          <td class="e m" title="${POI_TYPES[p.poi_type]||'?'}" style="font-size:11px">${POI_TYPES[p.poi_type]||'Typ '+p.poi_type}</td>
-          <td class="m">${(+p.latitude).toFixed(4)}</td>
-          <td class="m">${(+p.longitude).toFixed(4)}</td>
+          <td class="e" title="${p.caption}" style="color:#333">${p.caption}</td>
+          <td class="e m" title="${POI_TYPES[p.poi_type]||'?'}" style="font-size:11px;color:#555">${POI_TYPES[p.poi_type]||'Typ '+p.poi_type}</td>
+          <td class="m" style="color:#555">${(+p.latitude).toFixed(4)}</td>
+          <td class="m" style="color:#555">${(+p.longitude).toFixed(4)}</td>
           <td style="text-align:center" title="${p.duplicate?'Bereits vorhanden':''}">${p.duplicate?'🟡':''}</td>
         </tr>`).join('');
       g(tbody).querySelectorAll('input[type=checkbox]').forEach(c=>c.addEventListener('change',e=>{
@@ -1258,6 +1259,13 @@ out center tags bb;`;
       if (e.target.id === 'o-dup-limit-override') {
         g('o-import').disabled = !e.target.checked;
       }
+    });
+
+    // Geocode-State zurücksetzen wenn Adresse geändert wird
+    g('o-addr').addEventListener('input', () => {
+      gLat = null; gLon = null; gOsmType = null; gOsmId = null;
+      g('o-geo-info').style.display = 'none';
+      g('o-point-add').style.display = 'none';
     });
 
     g('o-all').addEventListener('click',e=>{e.preventDefault();panel.querySelectorAll('#o-types input').forEach(c=>c.checked=true);});

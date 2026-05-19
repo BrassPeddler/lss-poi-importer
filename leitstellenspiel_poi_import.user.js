@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.15
+// @name         LSS POI Importer v2.4.16
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.15
+// @version      2.4.16
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -148,6 +148,17 @@
     {tags:{amenity:'prison'},type:63},
     {tags:{leisure:'motorsport'},type:45},
     {tags:{landuse:'solar_farm'},type:64},
+    // Bürokomplex (22): Bürogebäude und Gewerbegebiete
+    {tags:{building:'office'},type:22},
+    {tags:{office:'government'},type:22},
+    {tags:{office:'company'},type:22},
+    {tags:{office:'yes'},type:22},
+    {tags:{building:'commercial'},type:22},
+    {tags:{landuse:'commercial'},type:22},
+    // Brücke (58): in OSM als eigenes man_made-Objekt oder highway+bridge
+    // bridge=yes ist nur ein Attribut an Wegen, daher man_made=bridge nutzen
+    {tags:{man_made:'bridge'},type:58},
+    {tags:{bridge:'aqueduct'},type:58},
   ];
 
   // Alle OSM-Tag-Paare die wir abfragen wollen (dedupliziert aus OSM_MAPPING)
@@ -625,7 +636,7 @@ out center tags bb;`;
     panel.id = 'lss-poi-importer';
     panel.innerHTML = `
       <div id="lss-hdr">
-        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.15</span></div>
+        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.16</span></div>
         <div class="hbtns">
           <button id="lss-min">─</button>
           <button id="lss-close">✕</button>

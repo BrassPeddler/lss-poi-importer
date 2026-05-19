@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         LSS POI Importer v2.4.17
+// @name         LSS POI Importer v2.4.18
 // @namespace    https://www.leitstellenspiel.de/
-// @version      2.4.17
+// @version      2.4.18
 // @description  POIs aus JSON importieren, per OSM-Suche generieren oder alle löschen (Alt+Shift+P oder 📍-Button)
 // @author       BrassPeddler
 // @match        https://www.leitstellenspiel.de/*
@@ -637,7 +637,7 @@ out center tags bb;`;
     panel.id = 'lss-poi-importer';
     panel.innerHTML = `
       <div id="lss-hdr">
-        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.17</span></div>
+        <div class="lr"><span class="htitle">📍 POI Importer</span><span class="hbadge">v2.4.18</span></div>
         <div class="hbtns">
           <button id="lss-min">─</button>
           <button id="lss-close">✕</button>
@@ -739,7 +739,7 @@ out center tags bb;`;
               <tbody id="o-tbody"></tbody>
             </table></div>
             <div class="ldel">
-              <span>Delay:</span><input id="o-delay" type="number" value="50" min="50" max="5000" step="100"><span>ms</span>
+              <span>Delay:</span><input id="o-delay" type="number" value="100" min="100" max="5000" step="100"><span>ms</span>
               <span style="margin-left:8px">Dup.-Radius:</span><input id="o-dup-radius" type="number" value="100" min="10" max="1000" step="10"><span>m</span>
             </div>
             <div id="o-prog" style="display:none" class="lpw">
@@ -797,7 +797,7 @@ out center tags bb;`;
               <tbody id="j-tbody"></tbody>
             </table></div>
             <div class="ldel">
-              <span>Delay:</span><input id="j-delay" type="number" value="50" min="50" max="5000" step="100"><span>ms</span>
+              <span>Delay:</span><input id="j-delay" type="number" value="100" min="100" max="5000" step="100"><span>ms</span>
               <span style="margin-left:8px">Dup.-Radius:</span><input id="j-dup-radius" type="number" value="100" min="10" max="1000" step="10"><span>m</span>
             </div>
             <div id="j-prog" style="display:none" class="lpw">
@@ -880,7 +880,7 @@ out center tags bb;`;
               </tr></thead>
               <tbody id="d-tbody"></tbody>
             </table></div>
-            <div class="ldel"><span>Delay:</span><input id="d-delay" type="number" value="50" min="50" max="5000" step="50"><span>ms</span></div>
+            <div class="ldel"><span>Delay:</span><input id="d-delay" type="number" value="100" min="100" max="5000" step="50"><span>ms</span></div>
             <button class="lb d" id="d-start" style="width:100%;padding:8px;font-weight:600">🗑 Auswahl löschen…</button>
           </div>
 
@@ -1478,7 +1478,7 @@ out center tags bb;`;
       if (!list.length) { showErr('o-err','Keine POIs ausgewählt.'); return; }
       running=true; showErr('o-err','');
       const btn=g('o-import'); btn.disabled=true; btn.textContent='⏳ Importiere…';
-      await runImport(list, Math.max(50,parseInt(g('o-delay').value)||400),
+      await runImport(list, Math.max(100,parseInt(g('o-delay').value)||400),
         {prog:'o-prog',pl:'o-pl',pp:'o-pp',pb:'o-pb',st:'o-st',sok:'o-sok',sfail:'o-sfail',logs:'o-logs',log:'o-log',btn:'o-import'});
     });
 
@@ -1535,7 +1535,7 @@ out center tags bb;`;
       if(!list.length){showErr('j-err','Keine POIs ausgewählt.');return;}
       running=true; showErr('j-err','');
       const btn=g('j-import'); btn.disabled=true; btn.textContent='⏳ Importiere…';
-      await runImport(list,Math.max(50,parseInt(g('j-delay').value)||400),
+      await runImport(list,Math.max(100,parseInt(g('j-delay').value)||400),
         {prog:'j-prog',pl:'j-pl',pp:'j-pp',pb:'j-pb',st:'j-st',sok:'j-sok',sfail:'j-sfail',logs:'j-logs',log:'j-log',btn:'j-import'});
     });
 
@@ -1748,7 +1748,7 @@ out center tags bb;`;
       g('d-logs').style.display = 'block';
       g('d-log').innerHTML = '';
       const token = getCsrfToken(), total = delPOIs.length;
-      const delay = Math.max(50, parseInt(g('d-delay').value) || 50);
+      const delay = Math.max(100, parseInt(g('d-delay').value) || 50);
       let ok = 0, fail = 0;
       const stats = () => {
         const done=ok+fail, pct=Math.round(done/total*100);
